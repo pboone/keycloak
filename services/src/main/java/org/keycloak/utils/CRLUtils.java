@@ -24,12 +24,10 @@ import java.security.cert.X509CRL;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.security.auth.x500.X500Principal;
@@ -46,7 +44,6 @@ import org.jboss.logging.Logger;
 import org.keycloak.common.util.BouncyIntegration;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.truststore.TruststoreProvider;
-import org.wildfly.security.x500.X500;
 
 /**
  * @author <a href="mailto:brat000012001@gmail.com">Peter Nalyvayko</a>
@@ -138,16 +135,24 @@ public final class CRLUtils {
             log.tracef("Not found CRL issuer '%s' in the CA chain of the certificate. Fallback to lookup CRL issuer in the truststore", crlIssuerPrincipal);
             crlSignatureCertificate = findCRLSignatureCertificateInTruststore(session, certs, crlIssuerPrincipal);
         }
-
+        
+        if (crlSignatureCertificate == null) {
+            log.tracef("Not found CRL issuer '%s' does not apply to this certificate chain", crlIssuerPrincipal);
+            return;
+        }
+        
         // Verify signature on CRL
         // TODO: It will be nice to cache CRLs and also verify their signatures just once at the time when CRL is loaded, rather than in every request
         crl.verify(crlSignatureCertificate.getPublicKey());
 
         // Finally check if
-        if (crl.isRevoked(certs[0])) {
-            String message = String.format("Certificate has been revoked, certificate's subject: %s", certs[0].getSubjectDN().getName());
-            log.debug(message);
-            throw new GeneralSecurityException(message);
+        for (int i = 0; i < certs.length; i++) {
+            if (crl.isRevoked(certs[i])) {
+                String message = String.format("Certificate has been revoked, certificate's subject: %s",
+                        certs[i].getSubjectDN().getName());
+                log.debug(message);
+                throw new GeneralSecurityException(message);
+            }
         }
     }
 
@@ -189,7 +194,12 @@ public final class CRLUtils {
             }
 
             // Try to see the anchor
-            currentCRLAnchorPrincipal = currentCRLAnchorCertificate.getIssuerX500Principal();
+            X500Principal issuer = currentCRLAnchorCertificate.getIssuerX500Principal();
+            if (issuer.equals(currentCRLAnchorPrincipal)) {
+                return null;
+            }
+            
+            currentCRLAnchorPrincipal = issuer;
 
             currentCRLAnchorCertificate = intermediateCerts.get(currentCRLAnchorPrincipal);
             if (currentCRLAnchorCertificate == null) {
