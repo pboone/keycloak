@@ -67,22 +67,14 @@ public class CRLUtilsTest {
         } catch (GeneralSecurityException expected) {
         }
 
-        // CRL issuer not in truststore
-        certs = new ArrayList<>();
-        certs.addAll(readCertificates(new File(getClass().getResource("/certs/client2-valid.crt").toURI())));
-        certs.addAll(readCertificates(new File(getClass().getResource("/certs/ia2.crt").toURI())));
-        certs.addAll(readCertificates(new File(getClass().getResource("/certs/ca2.crt").toURI())));
-        crl = readCrl(new File(getClass().getResource("/certs/ia2.crl").toURI()));
-        CRLUtils.check(certs.toArray(new X509Certificate[0]), crl, session);
-
-        // CRL issuer in truststore but not in cert chain (valid cert)
+        // Root CA missing from cert chain (valid cert)
         certs = new ArrayList<>();
         certs.addAll(readCertificates(new File(getClass().getResource("/certs/client1-valid.crt").toURI())));
         certs.addAll(readCertificates(new File(getClass().getResource("/certs/ia1.crt").toURI())));
         crl = readCrl(new File(getClass().getResource("/certs/ia1.crl").toURI()));
         CRLUtils.check(certs.toArray(new X509Certificate[0]), crl, session);
 
-        // CRL issuer in truststore but not in cert chain (revoked cert)
+        // Root CA missing from cert chain (revoked cert)
         certs = new ArrayList<>();
         certs.addAll(readCertificates(new File(getClass().getResource("/certs/client1-revoked.crt").toURI())));
         certs.addAll(readCertificates(new File(getClass().getResource("/certs/ia1.crt").toURI())));
@@ -118,7 +110,7 @@ public class CRLUtilsTest {
         certs.addAll(readCertificates(new File(getClass().getResource("/certs/ia1.crt").toURI())));
         certs.addAll(readCertificates(new File(getClass().getResource("/certs/ca1.crt").toURI())));
         crl = readCrl(new File(getClass().getResource("/certs/ia2.crl").toURI()));
-        // CRLUtils.check(certs.toArray(new X509Certificate[0]), crl, session);
+        CRLUtils.check(certs.toArray(new X509Certificate[0]), crl, session);
     }
 
     private static class MockSession extends DefaultKeycloakSession {
